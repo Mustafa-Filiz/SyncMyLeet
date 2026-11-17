@@ -1,7 +1,6 @@
-import type { GitHubRepository } from "../types/settings.types";
-
-import { encodeBase64 } from "../utils/base64";
-import { encodeGitHubPath } from "../utils/github-path";
+import type { GitHubRepository } from "@/types/settings.types";
+import { encodeBase64 } from "@/utils/base64";
+import { encodeGitHubPath } from "@/utils/github-path";
 
 const API_URL = "https://api.github.com";
 
@@ -15,7 +14,12 @@ export class GitHubApiError extends Error {
   }
 }
 
-interface GitHubFileResponse {
+interface GitHubUser {
+  login: string;
+  avatar_url: string;
+}
+
+interface GitHubFile {
   sha: string;
   path: string;
 }
@@ -36,7 +40,6 @@ async function githubRequest<T>(
 ): Promise<T> {
   const response = await fetch(`${API_URL}${path}`, {
     ...init,
-
     headers: {
       Accept: "application/vnd.github+json",
       Authorization: `Bearer ${token}`,
@@ -45,23 +48,20 @@ async function githubRequest<T>(
     },
   });
 
-  if (!response.ok) {
-    const error = await response.json().catch(() => null);
+  const data = await response.json().catch(() => null);
 
+  if (!response.ok) {
     throw new GitHubApiError(
-      error?.message ?? "GitHub request failed",
+      data?.message ?? "GitHub API request failed",
       response.status,
     );
   }
 
-  return response.json() as Promise<T>;
+  return data as T;
 }
 
-export async function validateToken(token: string) {
-  return githubRequest<{
-    login: string;
-    avatar_url: string;
-  }>("/user", token);
+export async function validateToken(token: string): Promise<GitHubUser> {
+  return githubRequest<GitHubUser>("/user", token);
 }
 
 export async function validateRepository(
@@ -83,17 +83,15 @@ export async function upsertFile({
   content,
   message,
 }: UpsertFileParams) {
-  const encodedPath = encodeGitHubPath(path);
-
   const endpoint =
     `/repos/${encodeURIComponent(owner)}` +
     `/${encodeURIComponent(repo)}` +
-    `/contents/${encodedPath}`;
+    `/contents/${encodeGitHubPath(path)}`;
 
   let existingSha: string | undefined;
 
   try {
-    const existing = await githubRequest<GitHubFileResponse>(endpoint, token);
+    const existing = await githubRequest<GitHubFile>(endpoint, token);
 
     existingSha = existing.sha;
   } catch (error) {
@@ -102,13 +100,11 @@ export async function upsertFile({
     }
   }
 
-  return githubRequest<GitHubFileResponse>(endpoint, token, {
+  return githubRequest<GitHubFile>(endpoint, token, {
     method: "PUT",
-
     headers: {
       "Content-Type": "application/json",
     },
-
     body: JSON.stringify({
       message,
       content: encodeBase64(content),
