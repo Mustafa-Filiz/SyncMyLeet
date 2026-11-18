@@ -1,5 +1,5 @@
+import type { GitHubSettings } from "@/types/settings.types";
 import { browser } from "wxt/browser";
-import type { GitHubSettings } from "../types/settings.types";
 
 const STORAGE_KEY = "github-settings";
 

@@ -135,7 +135,7 @@ export default function App() {
     <main className="app">
       <header className="header">
         <div>
-          <h1>LeetCode Sync</h1>
+          <h1>Sync My Leet</h1>
           <p>Sync your solutions to GitHub</p>
         </div>
       </header>
