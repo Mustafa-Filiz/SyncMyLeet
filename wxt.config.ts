@@ -10,6 +10,6 @@ export default defineConfig({
     name: "Sync My Leet",
     description: "Sync LeetCode solutions to GitHub",
     permissions: ["storage"],
-    host_permissions: ["https://api.github.com/*"],
+    host_permissions: ["https://api.github.com/*", "https://leetcode.com/*"],
   },
 });

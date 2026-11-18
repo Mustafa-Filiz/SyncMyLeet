@@ -1,4 +1,4 @@
-import { SubmissionSchema } from "@/schemas/submission.schema";
+import { SubmissionSchema } from "../schemas/submission.schema";
 import type { Submission } from "@/types/submission.types";
 
 const GRAPHQL_URL = "https://leetcode.com/graphql/";

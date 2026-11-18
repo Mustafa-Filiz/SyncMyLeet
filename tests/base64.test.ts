@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { encodeBase64 } from "@/utils/base64";
+import { encodeBase64 } from "../utils/base64";
 
 describe("encodeBase64", () => {
   it("should encode regular text", () => {
