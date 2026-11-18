@@ -1,4 +1,5 @@
 import LatestSubmission from "@/components/LatestSubmission";
+import SubmissionHistory from "@/components/SubmissionHistory";
 import { GitHubSettingsSchema } from "@/schemas/settings.schema";
 import {
   validateToken,
@@ -135,6 +136,7 @@ export default function App() {
   return (
     <main className="app">
       <LatestSubmission />
+      <SubmissionHistory />
       <header className="header">
         <div>
           <h1>Sync My Leet</h1>

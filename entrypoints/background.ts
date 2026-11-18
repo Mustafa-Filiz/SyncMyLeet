@@ -4,6 +4,7 @@ import {
   getLatestSubmission,
   hasProcessedSubmission,
   saveLatestSubmission,
+  getSubmissionById,
 } from "@/storage/submission.storage";
 import { browser } from "wxt/browser";
 
@@ -94,7 +95,7 @@ export default defineBackground(() => {
 
       void (async () => {
         try {
-          const submission = await getLatestSubmission();
+          const submission = await getSubmissionById(submissionId);
 
           if (!submission || submission.submissionId !== submissionId) {
             sendResponse({

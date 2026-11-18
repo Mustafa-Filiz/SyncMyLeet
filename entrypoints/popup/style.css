@@ -90,3 +90,99 @@ button.danger {
   font-size: 12px;
   overflow-wrap: anywhere;
 }
+
+.submission-history {
+  margin: 24px 0;
+}
+
+.submission-history header,
+.history-item-header,
+.history-actions {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+}
+
+.history-filters {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  margin: 16px 0;
+}
+
+.history-filters input {
+  grid-column: 1 / -1;
+}
+
+.history-filters input,
+.history-filters select {
+  width: 100%;
+  min-width: 0;
+  padding: 8px;
+}
+
+.history-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.history-item {
+  border: 1px solid #ddd;
+  border-radius: 8px;
+  padding: 12px;
+}
+
+.history-item h3 {
+  margin: 0 0 8px;
+}
+
+.history-item p {
+  font-size: 12px;
+  overflow-wrap: anywhere;
+}
+
+.submission-info {
+  display: flex;
+  gap: 8px;
+  font-size: 12px;
+}
+
+.sync-badge {
+  font-size: 11px;
+  padding: 4px 8px;
+  border-radius: 12px;
+  background: #eee;
+}
+
+.sync-badge.synced {
+  background: #d8f5df;
+  color: #176b31;
+}
+
+.sync-badge.failed {
+  background: #ffe0e0;
+  color: #a32121;
+}
+
+.sync-badge.syncing {
+  background: #fff0c2;
+  color: #795400;
+}
+
+.file-path {
+  overflow-wrap: anywhere;
+}
+
+.history-actions {
+  margin-top: 12px;
+}
+
+.history-actions button {
+  padding: 6px 12px;
+}
+
+.error {
+  color: #c62828;
+}
