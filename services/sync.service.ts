@@ -37,6 +37,15 @@ export async function performSyncSubmission(
     };
   }
 
+  if (trigger === "manual" && settings.syncMode === "automatic") {
+    return {
+      success: false,
+      status: "pending",
+      filePath,
+      message: "Manual sync is disabled.",
+    };
+  }
+
   if (!settings.token || !settings.owner || !settings.repo) {
     throw new Error("GitHub settings are incomplete.");
   }
