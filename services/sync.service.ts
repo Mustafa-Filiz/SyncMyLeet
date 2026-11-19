@@ -4,6 +4,12 @@ import { getSyncRecord, saveSyncRecord } from "@/storage/sync.storage";
 import type { Submission } from "@/types/submission.types";
 import type { SyncRecord, SyncResult, SyncTrigger } from "@/types/sync.types";
 import { getSolutionPath } from "@/utils/solution-path";
+import { getSubmissionHistory } from "@/storage/submission.storage";
+import {
+  getLastGeneratedReadme,
+  saveGeneratedReadme,
+} from "@/storage/readme.storage";
+import { generateReadme } from "@/utils/readme-generator";
 
 function createRecord(
   submissionId: string,
@@ -74,6 +80,25 @@ export async function performSyncSubmission(
       content: submission.code,
       message: `Add ${submission.title} (${submission.languageName})`,
     });
+
+    const history = await getSubmissionHistory();
+    const readme = generateReadme(history);
+
+    const repositoryKey = `${settings.owner}/${settings.repo}`;
+    const previousReadme = await getLastGeneratedReadme(repositoryKey);
+
+    if (readme !== previousReadme) {
+      await upsertFile({
+        token: settings.token,
+        owner: settings.owner,
+        repo: settings.repo,
+        path: "README.md",
+        content: readme,
+        message: "docs: update LeetCode solutions README",
+      });
+
+      await saveGeneratedReadme(repositoryKey, readme);
+    }
 
     await saveSyncRecord(
       createRecord(submission.submissionId, filePath, "synced"),
