@@ -51,6 +51,38 @@ async function validateAndSaveGitHubSettings(input: unknown) {
   };
 }
 
+async function checkGitHubConnection() {
+  const settings = await getSettings();
+
+  if (!settings.token || !settings.owner || !settings.repo) {
+    return {
+      connected: false,
+      error: "GitHub is not configured.",
+    };
+  }
+
+  const user = await validateToken(settings.token);
+
+  const repository = await validateRepository(
+    settings.token,
+    settings.owner,
+    settings.repo,
+  );
+
+  if (!repository.permissions?.push) {
+    return {
+      connected: false,
+      error: "You do not have write access to this repository.",
+    };
+  }
+
+  return {
+    connected: true,
+    username: user.login,
+    repository: repository.full_name,
+  };
+}
+
 function getErrorMessage(error: unknown, fallback: string): string {
   return error instanceof Error ? error.message : fallback;
 }
@@ -108,6 +140,29 @@ export async function handleBackgroundMessage(
       return {
         success: false,
         error: getErrorMessage(error, "Could not process submission."),
+      };
+    }
+  }
+
+  // GitHub connection status check
+  if (payload.type === "GITHUB_STATUS_CHECK") {
+    if (sender.id !== browser.runtime.id) {
+      return {
+        success: false,
+        error: "Untrusted message source.",
+      };
+    }
+
+    try {
+      return {
+        success: true,
+        ...(await checkGitHubConnection()),
+      };
+    } catch (error) {
+      return {
+        success: true,
+        connected: false,
+        error: getErrorMessage(error, "GitHub connection check failed."),
       };
     }
   }

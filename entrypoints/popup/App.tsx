@@ -1,6 +1,10 @@
 import LatestSubmission from "@/components/LatestSubmission";
 import SubmissionHistory from "@/components/SubmissionHistory";
 import { getSettings, clearSettings } from "@/storage/settings.storage";
+import {
+  getSettingsPanelOpen,
+  saveSettingsPanelOpen,
+} from "@/storage/ui-preferences.storage";
 import type { GitHubSettings } from "@/types/settings.types";
 import { browser } from "wxt/browser";
 import { useEffect, useState } from "react";
@@ -12,8 +16,11 @@ const DEFAULT_SETTINGS: GitHubSettings = {
   syncMode: "both",
 };
 
+type GitHubConnectionStatus = "checking" | "connected" | "disconnected";
+
 interface GitHubResponse {
   success: boolean;
+  connected?: boolean;
   username?: string;
   repository?: string;
   message?: string;
@@ -24,15 +31,57 @@ export default function App() {
   const [settings, setSettings] = useState<GitHubSettings>(DEFAULT_SETTINGS);
   const [settingsOpen, setSettingsOpen] = useState(true);
 
+  const [connectionStatus, setConnectionStatus] =
+    useState<GitHubConnectionStatus>("checking");
+
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
   const [status, setStatus] = useState("");
 
   useEffect(() => {
-    getSettings()
-      .then(setSettings)
-      .finally(() => setLoading(false));
+    async function initialize() {
+      try {
+        const [savedSettings, savedPanelOpen] = await Promise.all([
+          getSettings(),
+          getSettingsPanelOpen(),
+        ]);
+
+        setSettings(savedSettings);
+        setSettingsOpen(savedPanelOpen);
+
+        if (
+          !savedSettings.token ||
+          !savedSettings.owner ||
+          !savedSettings.repo
+        ) {
+          setConnectionStatus("disconnected");
+          return;
+        }
+
+        const response = (await browser.runtime.sendMessage({
+          type: "GITHUB_STATUS_CHECK",
+        })) as GitHubResponse;
+
+        setConnectionStatus(
+          response?.success && response.connected
+            ? "connected"
+            : "disconnected",
+        );
+      } catch (error) {
+        console.error("[Sync My Leet] Initialization failed:", error);
+        setConnectionStatus("disconnected");
+      } finally {
+        setLoading(false);
+      }
+    }
+
+    void initialize();
   }, []);
+
+  function handleSettingsToggle(isOpen: boolean) {
+    setSettingsOpen(isOpen);
+    void saveSettingsPanelOpen(isOpen);
+  }
 
   function updateField<K extends keyof GitHubSettings>(
     key: K,
@@ -66,10 +115,13 @@ export default function App() {
     try {
       const result = await sendGitHubMessage("GITHUB_CONNECT");
 
+      setConnectionStatus("connected");
+
       setStatus(
         `Connected as ${result.username}. Repository: ${result.repository}`,
       );
     } catch (error) {
+      setConnectionStatus("disconnected");
       setStatus(error instanceof Error ? error.message : "Connection failed");
     } finally {
       setBusy(false);
@@ -83,6 +135,7 @@ export default function App() {
     try {
       const result = await sendGitHubMessage("GITHUB_TEST_SYNC");
 
+      setConnectionStatus("connected");
       setStatus(result.message ?? "Test file successfully synced!");
     } catch (error) {
       setStatus(
@@ -100,6 +153,7 @@ export default function App() {
     try {
       await clearSettings();
       setSettings(DEFAULT_SETTINGS);
+      setConnectionStatus("disconnected");
       setStatus("GitHub disconnected.");
     } catch (error) {
       setStatus(
@@ -125,13 +179,13 @@ export default function App() {
           </div>
         </div>
 
-        <span
-          className={`connection-indicator ${
-            settings.token ? "connected" : "disconnected"
-          }`}
-        >
+        <span className={`connection-indicator ${connectionStatus}`}>
           <span className="connection-dot" />
-          {settings.token ? "Connected" : "Not connected"}
+          {connectionStatus === "checking"
+            ? "Checking..."
+            : connectionStatus === "connected"
+              ? "Connected"
+              : "Not connected"}
         </span>
       </header>
 
@@ -140,7 +194,7 @@ export default function App() {
           className="settings-details"
           open={settingsOpen}
           onToggle={(event) => {
-            setSettingsOpen(event.currentTarget.open);
+            handleSettingsToggle(event.currentTarget.open);
           }}
         >
           <summary>

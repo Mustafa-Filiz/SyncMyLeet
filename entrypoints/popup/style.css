@@ -112,6 +112,14 @@ body {
   background: var(--muted);
 }
 
+.connection-indicator.checking {
+  color: var(--text-muted);
+}
+
+.connection-indicator.checking .connection-dot {
+  background: var(--text-muted);
+}
+
 .connection-indicator.connected {
   color: var(--green);
   border-color: #245b35;
