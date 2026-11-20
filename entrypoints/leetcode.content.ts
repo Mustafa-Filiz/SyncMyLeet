@@ -68,6 +68,17 @@ export default defineContentScript({
 
         console.info("[Sync My Leet] Submission captured:", submission.title);
       } catch (error) {
+        const message = error instanceof Error ? error.message : String(error);
+
+        if (message.includes("Extension context invalidated")) {
+          console.warn(
+            "[Sync My Leet] Extension context was invalidated. Tracking stopped.",
+          );
+
+          stopTracking();
+          return;
+        }
+
         console.error("[Sync My Leet] Capture failed:", error);
 
         processedIds.delete(submissionId);
@@ -96,8 +107,13 @@ export default defineContentScript({
     checkUrl();
 
     const interval = window.setInterval(checkUrl, 500);
+    let isStopped = false;
 
-    ctx.onInvalidated(() => {
+    function stopTracking() {
+      if (isStopped) return;
+
+      isStopped = true;
+
       window.clearInterval(interval);
 
       retryTimers.forEach((timer) => {
@@ -105,6 +121,8 @@ export default defineContentScript({
       });
 
       retryTimers.clear();
-    });
+    }
+
+    ctx.onInvalidated(stopTracking);
   },
 });

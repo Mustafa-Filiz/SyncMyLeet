@@ -22,6 +22,7 @@ interface GitHubResponse {
 
 export default function App() {
   const [settings, setSettings] = useState<GitHubSettings>(DEFAULT_SETTINGS);
+  const [settingsOpen, setSettingsOpen] = useState(true);
 
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
@@ -135,7 +136,13 @@ export default function App() {
       </header>
 
       <section className="settings-card">
-        <details className="settings-details" open={!settings.token}>
+        <details
+          className="settings-details"
+          open={settingsOpen}
+          onToggle={(event) => {
+            setSettingsOpen(event.currentTarget.open);
+          }}
+        >
           <summary>
             <div>
               <strong>GitHub settings</strong>
