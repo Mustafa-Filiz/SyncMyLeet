@@ -1,4 +1,4 @@
-import { getSubmissionDetails } from "../services/leetcode.service";
+import { getSubmissionDetails } from "@/services/leetcode.service";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 describe("LeetCode Service", () => {

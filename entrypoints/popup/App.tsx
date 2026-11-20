@@ -1,17 +1,8 @@
 import LatestSubmission from "@/components/LatestSubmission";
 import SubmissionHistory from "@/components/SubmissionHistory";
-import { GitHubSettingsSchema } from "@/schemas/settings.schema";
-import {
-  validateToken,
-  validateRepository,
-  upsertFile,
-} from "@/services/github.service";
-import {
-  getSettings,
-  saveSettings,
-  clearSettings,
-} from "@/storage/settings.storage";
+import { getSettings, clearSettings } from "@/storage/settings.storage";
 import type { GitHubSettings } from "@/types/settings.types";
+import { browser } from "wxt/browser";
 import { useEffect, useState } from "react";
 
 const DEFAULT_SETTINGS: GitHubSettings = {
@@ -20,6 +11,14 @@ const DEFAULT_SETTINGS: GitHubSettings = {
   repo: "",
   syncMode: "both",
 };
+
+interface GitHubResponse {
+  success: boolean;
+  username?: string;
+  repository?: string;
+  message?: string;
+  error?: string;
+}
 
 export default function App() {
   const [settings, setSettings] = useState<GitHubSettings>(DEFAULT_SETTINGS);
@@ -44,31 +43,19 @@ export default function App() {
     }));
   }
 
-  async function validateConnection() {
-    const parsed = GitHubSettingsSchema.safeParse(settings);
+  async function sendGitHubMessage(
+    type: "GITHUB_CONNECT" | "GITHUB_TEST_SYNC",
+  ): Promise<GitHubResponse> {
+    const response = (await browser.runtime.sendMessage({
+      type,
+      settings,
+    })) as GitHubResponse;
 
-    if (!parsed.success) {
-      throw new Error(parsed.error.issues[0]?.message ?? "Invalid settings");
+    if (!response?.success) {
+      throw new Error(response?.error ?? "GitHub operation failed.");
     }
 
-    const user = await validateToken(settings.token);
-
-    const repository = await validateRepository(
-      settings.token,
-      settings.owner,
-      settings.repo,
-    );
-
-    if (!repository.permissions?.push) {
-      throw new Error("You do not have write access to this repository.");
-    }
-
-    await saveSettings(settings);
-
-    return {
-      username: user.login,
-      repository: repository.full_name,
-    };
+    return response;
   }
 
   async function handleConnect() {
@@ -76,7 +63,7 @@ export default function App() {
     setStatus("");
 
     try {
-      const result = await validateConnection();
+      const result = await sendGitHubMessage("GITHUB_CONNECT");
 
       setStatus(
         `Connected as ${result.username}. Repository: ${result.repository}`,
@@ -93,27 +80,9 @@ export default function App() {
     setStatus("");
 
     try {
-      await validateConnection();
+      const result = await sendGitHubMessage("GITHUB_TEST_SYNC");
 
-      await upsertFile({
-        token: settings.token,
-        owner: settings.owner,
-        repo: settings.repo,
-
-        path: "leetcode-sync/connection-test.md",
-
-        content: [
-          "# LeetCode Sync",
-          "",
-          "GitHub integration is working!",
-          "",
-          `Last tested: ${new Date().toISOString()}`,
-        ].join("\n"),
-
-        message: "test: verify GitHub integration",
-      });
-
-      setStatus("Test file successfully synced!");
+      setStatus(result.message ?? "Test file successfully synced!");
     } catch (error) {
       setStatus(
         error instanceof Error ? error.message : "Synchronization failed",
@@ -124,9 +93,20 @@ export default function App() {
   }
 
   async function handleDisconnect() {
-    await clearSettings();
-    setSettings(DEFAULT_SETTINGS);
-    setStatus("GitHub disconnected.");
+    setBusy(true);
+    setStatus("");
+
+    try {
+      await clearSettings();
+      setSettings(DEFAULT_SETTINGS);
+      setStatus("GitHub disconnected.");
+    } catch (error) {
+      setStatus(
+        error instanceof Error ? error.message : "Could not disconnect GitHub.",
+      );
+    } finally {
+      setBusy(false);
+    }
   }
 
   if (loading) {
@@ -137,6 +117,7 @@ export default function App() {
     <main className="app">
       <LatestSubmission />
       <SubmissionHistory />
+
       <header className="header">
         <div>
           <h1>Sync My Leet</h1>
@@ -197,7 +178,7 @@ export default function App() {
         </button>
 
         <button className="secondary" disabled={busy} onClick={handleTestSync}>
-          Send Test File
+          {busy ? "Processing..." : "Send Test File"}
         </button>
 
         <button className="danger" disabled={busy} onClick={handleDisconnect}>

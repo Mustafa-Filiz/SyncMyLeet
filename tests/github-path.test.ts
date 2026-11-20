@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { encodeGitHubPath } from "../utils/github-path";
+import { encodeGitHubPath } from "@/utils/github-path";
 
 describe("encodeGitHubPath", () => {
   it("should preserve folder separators", () => {

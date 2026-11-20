@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { generateReadme } from "../utils/readme-generator";
+import { generateReadme } from "@/utils/readme-generator";
 import type { Submission } from "@/types/submission.types";
 
 const createSubmission = (overrides: Partial<Submission> = {}): Submission => ({

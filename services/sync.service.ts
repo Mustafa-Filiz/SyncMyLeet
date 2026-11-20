@@ -128,16 +128,34 @@ export async function performSyncSubmission(
 
 let syncQueue: Promise<void> = Promise.resolve();
 
+const inFlightSyncs = new Map<string, Promise<SyncResult>>();
+
 export function syncSubmission(
   submission: Submission,
   trigger: SyncTrigger,
 ): Promise<SyncResult> {
+  const existingTask = inFlightSyncs.get(submission.submissionId);
+
+  if (existingTask) {
+    return existingTask;
+  }
+
   const task = syncQueue.then(() => performSyncSubmission(submission, trigger));
+
+  inFlightSyncs.set(submission.submissionId, task);
 
   syncQueue = task.then(
     () => undefined,
     () => undefined,
   );
+
+  const cleanup = () => {
+    if (inFlightSyncs.get(submission.submissionId) === task) {
+      inFlightSyncs.delete(submission.submissionId);
+    }
+  };
+
+  void task.then(cleanup, cleanup);
 
   return task;
 }

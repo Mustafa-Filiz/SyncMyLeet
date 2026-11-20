@@ -1,8 +1,8 @@
 {
-  "name": "wxt-react-starter",
-  "version": "0.0.0",
+  "name": "sync-my-leet",
+  "version": "1.0.0",
   "private": true,
-  "description": "manifest.json description",
+  "description": "Automatically sync your LeetCode solutions to GitHub",
   "type": "module",
   "scripts": {
     "dev": "wxt",

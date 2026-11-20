@@ -1,4 +1,4 @@
-import { SubmissionSchema } from "../schemas/submission.schema";
+import { SubmissionSchema } from "@/schemas/submission.schema";
 import { describe, expect, it } from "vitest";
 
 const validSubmission = {

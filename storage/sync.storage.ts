@@ -30,3 +30,32 @@ export async function saveSyncRecord(record: SyncRecord): Promise<void> {
     [STORAGE_KEY]: updatedHistory,
   });
 }
+
+export async function recoverInterruptedSyncs(): Promise<void> {
+  const history = await getSyncHistory();
+
+  const now = new Date().toISOString();
+
+  let hasChanges = false;
+
+  const recoveredHistory = history.map((record) => {
+    if (record.status !== "syncing") {
+      return record;
+    }
+
+    hasChanges = true;
+
+    return {
+      ...record,
+      status: "failed" as const,
+      updatedAt: now,
+      error: "Sync interrupted because the extension service worker restarted.",
+    };
+  });
+
+  if (hasChanges) {
+    await browser.storage.local.set({
+      [STORAGE_KEY]: recoveredHistory,
+    });
+  }
+}
