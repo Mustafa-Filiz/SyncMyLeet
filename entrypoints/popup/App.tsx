@@ -110,87 +110,126 @@ export default function App() {
   }
 
   if (loading) {
-    return <main>Loading...</main>;
+    return <main className="app loading">Loading Sync My Leet...</main>;
   }
 
   return (
     <main className="app">
+      <header className="app-header">
+        <div className="brand">
+          <img src="/icon/48.png" alt="app-icon" />
+          <div>
+            <h1>Sync My Leet</h1>
+            <p>LeetCode solutions, synced to GitHub.</p>
+          </div>
+        </div>
+
+        <span
+          className={`connection-indicator ${
+            settings.token ? "connected" : "disconnected"
+          }`}
+        >
+          <span className="connection-dot" />
+          {settings.token ? "Connected" : "Not connected"}
+        </span>
+      </header>
+
+      <section className="settings-card">
+        <details className="settings-details" open={!settings.token}>
+          <summary>
+            <div>
+              <strong>GitHub settings</strong>
+              <span>Repository and synchronization preferences</span>
+            </div>
+            <span className="settings-chevron">⌄</span>
+          </summary>
+
+          <div className="form">
+            <label>
+              GitHub Personal Access Token
+              <input
+                type="password"
+                value={settings.token}
+                placeholder="github_pat_..."
+                onChange={(event) => updateField("token", event.target.value)}
+              />
+            </label>
+
+            <div className="grid">
+              <label>
+                Owner
+                <input
+                  value={settings.owner}
+                  placeholder="username"
+                  onChange={(event) => updateField("owner", event.target.value)}
+                />
+              </label>
+
+              <label>
+                Repository
+                <input
+                  value={settings.repo}
+                  placeholder="leetcode-solutions"
+                  onChange={(event) => updateField("repo", event.target.value)}
+                />
+              </label>
+            </div>
+
+            <label>
+              Synchronization mode
+              <select
+                value={settings.syncMode}
+                onChange={(event) =>
+                  updateField(
+                    "syncMode",
+                    event.target.value as GitHubSettings["syncMode"],
+                  )
+                }
+              >
+                <option value="automatic">Automatic</option>
+                <option value="manual">Manual</option>
+                <option value="both">Automatic + Manual</option>
+              </select>
+            </label>
+
+            <button disabled={busy} onClick={handleConnect}>
+              {busy ? "Connecting..." : "Save & Validate"}
+            </button>
+
+            <button
+              className="secondary"
+              disabled={busy || !settings.token}
+              onClick={handleTestSync}
+            >
+              {busy ? "Processing..." : "Send Test File"}
+            </button>
+
+            {settings.token && (
+              <button
+                className="danger"
+                disabled={busy}
+                onClick={handleDisconnect}
+              >
+                Disconnect GitHub
+              </button>
+            )}
+
+            {status && (
+              <div className="status" role="status">
+                {status}
+              </div>
+            )}
+          </div>
+        </details>
+      </section>
+
       <LatestSubmission />
       <SubmissionHistory />
 
-      <header className="header">
-        <div>
-          <h1>Sync My Leet</h1>
-          <p>Sync your solutions to GitHub</p>
-        </div>
-      </header>
-
-      <section className="form">
-        <label>
-          GitHub Token
-          <input
-            type="password"
-            value={settings.token}
-            placeholder="github_pat_..."
-            onChange={(event) => updateField("token", event.target.value)}
-          />
-        </label>
-
-        <div className="grid">
-          <label>
-            Owner
-            <input
-              value={settings.owner}
-              placeholder="username"
-              onChange={(event) => updateField("owner", event.target.value)}
-            />
-          </label>
-
-          <label>
-            Repository
-            <input
-              value={settings.repo}
-              placeholder="leetcode-solutions"
-              onChange={(event) => updateField("repo", event.target.value)}
-            />
-          </label>
-        </div>
-
-        <label>
-          Synchronization mode
-          <select
-            value={settings.syncMode}
-            onChange={(event) =>
-              updateField(
-                "syncMode",
-                event.target.value as GitHubSettings["syncMode"],
-              )
-            }
-          >
-            <option value="automatic">Automatic</option>
-            <option value="manual">Manual</option>
-            <option value="both">Automatic + Manual</option>
-          </select>
-        </label>
-
-        <button disabled={busy} onClick={handleConnect}>
-          {busy ? "Connecting..." : "Save & Validate"}
-        </button>
-
-        <button className="secondary" disabled={busy} onClick={handleTestSync}>
-          {busy ? "Processing..." : "Send Test File"}
-        </button>
-
-        <button className="danger" disabled={busy} onClick={handleDisconnect}>
-          Disconnect GitHub
-        </button>
-
-        {status && (
-          <div className="status" role="status">
-            {status}
-          </div>
-        )}
-      </section>
+      <footer className="app-footer">
+        <span>Sync My Leet</span>
+        <span>Made for LeetCode developers</span>
+      </footer>
     </main>
   );
 }

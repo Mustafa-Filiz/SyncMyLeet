@@ -24,10 +24,13 @@ describe("generateReadme", () => {
     const result = generateReadme([]);
 
     expect(result).toContain("# LeetCode Solutions");
-    expect(result).toContain("**Total solutions:** 0");
+    expect(result).toContain("| **0** | **0** | **—** |");
+    expect(result).toContain("## Difficulty Distribution");
+    expect(result).toContain("## Language Distribution");
+    expect(result).toContain("## Solutions");
   });
 
-  it("includes problem information", () => {
+  it("includes problem information and solution path", () => {
     const result = generateReadme([createSubmission()]);
 
     expect(result).toContain("Two Sum");
@@ -47,7 +50,7 @@ describe("generateReadme", () => {
 
     const result = generateReadme([second, first]);
 
-    expect(result).toContain("**Total solutions:** 1");
+    expect(result).toContain("| **1** | **1** | **2026-11-18** |");
     expect(result.match(/\| \[Two Sum\]/g)).toHaveLength(1);
   });
 
@@ -62,18 +65,114 @@ describe("generateReadme", () => {
 
     const result = generateReadme([typescript, python]);
 
-    expect(result).toContain("**Total solutions:** 2");
+    expect(result).toContain("| **2** | **2** |");
     expect(result).toContain("| TypeScript | 1 |");
     expect(result).toContain("| Python3 | 1 |");
   });
 
-  it("escapes pipe characters in problem titles", () => {
+  it("sorts languages by solution count in descending order", () => {
+    const submissions = [
+      createSubmission({
+        languageName: "JavaScript",
+        language: "javascript",
+      }),
+      createSubmission({
+        submissionId: "456",
+        languageName: "TypeScript",
+        language: "typescript",
+      }),
+      createSubmission({
+        submissionId: "789",
+        languageName: "TypeScript",
+        language: "typescript",
+        problemId: "2",
+        frontendId: "2",
+        title: "Add Two Numbers",
+        slug: "add-two-numbers",
+      }),
+    ];
+
+    const result = generateReadme(submissions);
+
+    const typescriptIndex = result.indexOf("| TypeScript | 2 |");
+    const javascriptIndex = result.indexOf("| JavaScript | 1 |");
+
+    expect(typescriptIndex).toBeGreaterThan(-1);
+    expect(javascriptIndex).toBeGreaterThan(-1);
+    expect(typescriptIndex).toBeLessThan(javascriptIndex);
+  });
+
+  it("calculates difficulty distribution correctly", () => {
+    const submissions = [
+      createSubmission(),
+      createSubmission({
+        submissionId: "456",
+        difficulty: "Medium",
+        problemId: "2",
+        frontendId: "2",
+        title: "Add Two Numbers",
+        slug: "add-two-numbers",
+      }),
+      createSubmission({
+        submissionId: "789",
+        difficulty: "Hard",
+        problemId: "3",
+        frontendId: "3",
+        title: "Median of Two Sorted Arrays",
+        slug: "median-of-two-sorted-arrays",
+      }),
+      createSubmission({
+        submissionId: "101",
+        difficulty: "Medium",
+        problemId: "4",
+        frontendId: "4",
+        title: "Longest Substring",
+        slug: "longest-substring",
+      }),
+    ];
+
+    const result = generateReadme(submissions);
+
+    expect(result).toContain("| Easy | 1 |");
+    expect(result).toContain("| Medium | 2 |");
+    expect(result).toContain("| Hard | 1 |");
+    expect(result).toContain("50%");
+    expect(result).toContain("25%");
+  });
+
+  it("uses the latest submission date", () => {
+    const submissions = [
+      createSubmission({
+        submittedAt: "2026-11-15T10:00:00.000Z",
+      }),
+      createSubmission({
+        submissionId: "456",
+        problemId: "2",
+        frontendId: "2",
+        title: "Add Two Numbers",
+        slug: "add-two-numbers",
+        submittedAt: "2026-11-20T12:00:00.000Z",
+      }),
+    ];
+
+    const result = generateReadme(submissions);
+
+    expect(result).toContain("| **2** | **1** | **2026-11-20** |");
+  });
+
+  it("escapes special characters in problem titles", () => {
     const submission = createSubmission({
-      title: "Problem | Example",
+      title: "Problem | [Example]",
     });
 
     const result = generateReadme([submission]);
 
-    expect(result).toContain("Problem \\| Example");
+    expect(result).toContain("Problem \\| \\[Example\\]");
+  });
+
+  it("handles an empty language distribution", () => {
+    const result = generateReadme([]);
+
+    expect(result).not.toContain("NaN%");
   });
 });

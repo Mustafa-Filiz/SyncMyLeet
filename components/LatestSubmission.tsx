@@ -76,9 +76,10 @@ export default function LatestSubmission() {
 
   if (!submission) {
     return (
-      <section>
+      <section className="latest-submission empty-state">
         <h2>Latest Submission</h2>
         <p>No submissions captured yet.</p>
+        <span>Submit an accepted solution on LeetCode to get started.</span>
       </section>
     );
   }
