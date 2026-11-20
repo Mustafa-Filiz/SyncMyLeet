@@ -1,27 +1,34 @@
 import { describe, expect, it } from "vitest";
 import { generateReadme } from "@/utils/readme-generator";
-import type { Submission } from "@/types/submission.types";
+import type {
+  SolutionManifest,
+  SolutionManifestEntry,
+} from "@/types/manifest.types";
 
-const createSubmission = (overrides: Partial<Submission> = {}): Submission => ({
-  submissionId: "123",
+const createSolution = (
+  overrides: Partial<SolutionManifestEntry> = {},
+): SolutionManifestEntry => ({
   problemId: "1",
-  frontendId: "1",
   title: "Two Sum",
   slug: "two-sum",
   difficulty: "Easy",
   language: "typescript",
   languageName: "TypeScript",
-  code: "console.log('hello')",
-  topics: [],
-  url: "https://leetcode.com/problems/two-sum/",
+  path: "Easy/0001-two-sum/solution.ts",
   submittedAt: "2026-11-18T10:00:00.000Z",
-  status: "Accepted",
   ...overrides,
 });
 
+const createManifest = (
+  solutions: SolutionManifestEntry[] = [],
+): SolutionManifest => ({
+  version: 1,
+  solutions,
+});
+
 describe("generateReadme", () => {
-  it("generates README for an empty history", () => {
-    const result = generateReadme([]);
+  it("generates README for an empty manifest", () => {
+    const result = generateReadme(createManifest());
 
     expect(result).toContain("# LeetCode Solutions");
     expect(result).toContain("| **0** | **0** | **—** |");
@@ -31,7 +38,7 @@ describe("generateReadme", () => {
   });
 
   it("includes problem information and solution path", () => {
-    const result = generateReadme([createSubmission()]);
+    const result = generateReadme(createManifest([createSolution()]));
 
     expect(result).toContain("Two Sum");
     expect(result).toContain("Easy");
@@ -39,31 +46,30 @@ describe("generateReadme", () => {
     expect(result).toContain("0001-two-sum/solution.ts");
   });
 
-  it("counts unique solution paths instead of submissions", () => {
-    const first = createSubmission();
+  it("counts unique solution entries", () => {
+    const result = generateReadme(
+      createManifest([
+        createSolution(),
+        createSolution({
+          submittedAt: "2026-11-18T11:00:00.000Z",
+        }),
+      ]),
+    );
 
-    const second = createSubmission({
-      submissionId: "456",
-      code: "console.log('updated')",
-      submittedAt: "2026-11-18T11:00:00.000Z",
-    });
-
-    const result = generateReadme([second, first]);
-
-    expect(result).toContain("| **1** | **1** | **2026-11-18** |");
-    expect(result.match(/\| \[Two Sum\]/g)).toHaveLength(1);
+    expect(result).toContain("| **2** | **1** | **2026-11-18** |");
+    expect(result.match(/\| \[Two Sum\]/g)).toHaveLength(2);
   });
 
   it("counts different languages separately", () => {
-    const typescript = createSubmission();
-
-    const python = createSubmission({
-      submissionId: "456",
-      language: "python3",
-      languageName: "Python3",
-    });
-
-    const result = generateReadme([typescript, python]);
+    const result = generateReadme(
+      createManifest([
+        createSolution(),
+        createSolution({
+          language: "python3",
+          languageName: "Python3",
+        }),
+      ]),
+    );
 
     expect(result).toContain("| **2** | **2** |");
     expect(result).toContain("| TypeScript | 1 |");
@@ -71,28 +77,26 @@ describe("generateReadme", () => {
   });
 
   it("sorts languages by solution count in descending order", () => {
-    const submissions = [
-      createSubmission({
-        languageName: "JavaScript",
-        language: "javascript",
-      }),
-      createSubmission({
-        submissionId: "456",
-        languageName: "TypeScript",
-        language: "typescript",
-      }),
-      createSubmission({
-        submissionId: "789",
-        languageName: "TypeScript",
-        language: "typescript",
-        problemId: "2",
-        frontendId: "2",
-        title: "Add Two Numbers",
-        slug: "add-two-numbers",
-      }),
-    ];
-
-    const result = generateReadme(submissions);
+    const result = generateReadme(
+      createManifest([
+        createSolution({
+          language: "javascript",
+          languageName: "JavaScript",
+        }),
+        createSolution({
+          language: "typescript",
+          languageName: "TypeScript",
+        }),
+        createSolution({
+          problemId: "2",
+          title: "Add Two Numbers",
+          slug: "add-two-numbers",
+          path: "Easy/0002-add-two-numbers/solution.ts",
+          language: "typescript",
+          languageName: "TypeScript",
+        }),
+      ]),
+    );
 
     const typescriptIndex = result.indexOf("| TypeScript | 2 |");
     const javascriptIndex = result.indexOf("| JavaScript | 1 |");
@@ -103,35 +107,32 @@ describe("generateReadme", () => {
   });
 
   it("calculates difficulty distribution correctly", () => {
-    const submissions = [
-      createSubmission(),
-      createSubmission({
-        submissionId: "456",
-        difficulty: "Medium",
-        problemId: "2",
-        frontendId: "2",
-        title: "Add Two Numbers",
-        slug: "add-two-numbers",
-      }),
-      createSubmission({
-        submissionId: "789",
-        difficulty: "Hard",
-        problemId: "3",
-        frontendId: "3",
-        title: "Median of Two Sorted Arrays",
-        slug: "median-of-two-sorted-arrays",
-      }),
-      createSubmission({
-        submissionId: "101",
-        difficulty: "Medium",
-        problemId: "4",
-        frontendId: "4",
-        title: "Longest Substring",
-        slug: "longest-substring",
-      }),
-    ];
-
-    const result = generateReadme(submissions);
+    const result = generateReadme(
+      createManifest([
+        createSolution(),
+        createSolution({
+          problemId: "2",
+          title: "Add Two Numbers",
+          slug: "add-two-numbers",
+          difficulty: "Medium",
+          path: "Medium/0002-add-two-numbers/solution.ts",
+        }),
+        createSolution({
+          problemId: "3",
+          title: "Median of Two Sorted Arrays",
+          slug: "median-of-two-sorted-arrays",
+          difficulty: "Hard",
+          path: "Hard/0003-median-of-two-sorted-arrays/solution.ts",
+        }),
+        createSolution({
+          problemId: "4",
+          title: "Longest Substring",
+          slug: "longest-substring",
+          difficulty: "Medium",
+          path: "Medium/0004-longest-substring/solution.ts",
+        }),
+      ]),
+    );
 
     expect(result).toContain("| Easy | 1 |");
     expect(result).toContain("| Medium | 2 |");
@@ -140,39 +141,80 @@ describe("generateReadme", () => {
     expect(result).toContain("25%");
   });
 
-  it("uses the latest submission date", () => {
-    const submissions = [
-      createSubmission({
-        submittedAt: "2026-11-15T10:00:00.000Z",
-      }),
-      createSubmission({
-        submissionId: "456",
-        problemId: "2",
-        frontendId: "2",
-        title: "Add Two Numbers",
-        slug: "add-two-numbers",
-        submittedAt: "2026-11-20T12:00:00.000Z",
-      }),
-    ];
-
-    const result = generateReadme(submissions);
+  it("uses the latest available submission date", () => {
+    const result = generateReadme(
+      createManifest([
+        createSolution({
+          submittedAt: "2026-11-15T10:00:00.000Z",
+        }),
+        createSolution({
+          problemId: "2",
+          title: "Add Two Numbers",
+          slug: "add-two-numbers",
+          path: "Easy/0002-add-two-numbers/solution.ts",
+          submittedAt: "2026-11-20T12:00:00.000Z",
+        }),
+      ]),
+    );
 
     expect(result).toContain("| **2** | **1** | **2026-11-20** |");
   });
 
-  it("escapes special characters in problem titles", () => {
-    const submission = createSubmission({
-      title: "Problem | [Example]",
-    });
+  it("ignores solutions without submission dates", () => {
+    const result = generateReadme(
+      createManifest([
+        createSolution({
+          submittedAt: undefined,
+        }),
+        createSolution({
+          problemId: "2",
+          title: "Add Two Numbers",
+          slug: "add-two-numbers",
+          path: "Easy/0002-add-two-numbers/solution.ts",
+          submittedAt: "2026-11-20T12:00:00.000Z",
+        }),
+      ]),
+    );
 
-    const result = generateReadme([submission]);
+    expect(result).toContain("| **2** | **1** | **2026-11-20** |");
+  });
+
+  it("shows no date when all submission dates are unknown", () => {
+    const result = generateReadme(
+      createManifest([
+        createSolution({
+          submittedAt: undefined,
+        }),
+      ]),
+    );
+
+    expect(result).toContain("| **1** | **1** | **—** |");
+  });
+
+  it("escapes special characters in problem titles", () => {
+    const result = generateReadme(
+      createManifest([
+        createSolution({
+          title: "Problem | [Example]",
+        }),
+      ]),
+    );
 
     expect(result).toContain("Problem \\| \\[Example\\]");
   });
 
   it("handles an empty language distribution", () => {
-    const result = generateReadme([]);
+    const result = generateReadme(createManifest());
 
     expect(result).not.toContain("NaN%");
+  });
+
+  it("uses repository-based statistics in the footer", () => {
+    const result = generateReadme(createManifest());
+
+    expect(result).toContain(
+      "Statistics are based on solution files currently present in this repository.",
+    );
+    expect(result).not.toContain("up to 200");
   });
 });

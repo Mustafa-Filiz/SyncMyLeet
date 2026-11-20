@@ -1,5 +1,5 @@
 import type { GitHubRepository } from "@/types/settings.types";
-import { encodeBase64 } from "@/utils/base64";
+import { decodeBase64, encodeBase64 } from "@/utils/base64";
 import { encodeGitHubPath } from "@/utils/github-path";
 
 const API_URL = "https://api.github.com";
@@ -31,6 +31,27 @@ interface UpsertFileParams {
   path: string;
   content: string;
   message: string;
+}
+
+export interface GitHubTreeItem {
+  path: string;
+  mode: string;
+  type: "blob" | "tree";
+  sha: string;
+  size?: number;
+}
+
+interface GitHubTreeResponse {
+  sha: string;
+  tree: GitHubTreeItem[];
+  truncated: boolean;
+}
+
+interface GitHubContent {
+  content: string;
+  encoding: string;
+  path: string;
+  sha: string;
 }
 
 async function githubRequest<T>(
@@ -111,4 +132,69 @@ export async function upsertFile({
       ...(existingSha ? { sha: existingSha } : {}),
     }),
   });
+}
+
+export async function getRepositoryTree({
+  token,
+  owner,
+  repo,
+}: {
+  token: string;
+  owner: string;
+  repo: string;
+}): Promise<GitHubTreeItem[]> {
+  const repository = await validateRepository(token, owner, repo);
+
+  const branch = await githubRequest<{
+    commit: { commit: { tree: { sha: string } } };
+  }>(
+    `/repos/${encodeURIComponent(owner)}/${encodeURIComponent(repo)}/branches/${encodeURIComponent(repository.default_branch)}`,
+    token,
+  );
+
+  const tree = await githubRequest<GitHubTreeResponse>(
+    `/repos/${encodeURIComponent(owner)}/${encodeURIComponent(repo)}/git/trees/${branch.commit.commit.tree.sha}?recursive=1`,
+    token,
+  );
+
+  if (tree.truncated) {
+    throw new Error(
+      "Repository is too large to retrieve its complete file tree.",
+    );
+  }
+
+  return tree.tree.filter((item) => item.type === "blob");
+}
+
+export async function getFile({
+  token,
+  owner,
+  repo,
+  path,
+}: {
+  token: string;
+  owner: string;
+  repo: string;
+} & Pick<UpsertFileParams, "path">): Promise<string | null> {
+  const endpoint =
+    `/repos/${encodeURIComponent(owner)}` +
+    `/${encodeURIComponent(repo)}` +
+    `/contents/${encodeGitHubPath(path)}`;
+
+  try {
+    const file = await githubRequest<GitHubContent>(endpoint, token);
+
+    if (file.encoding !== "base64") {
+      throw new Error(`Unsupported file encoding: ${file.encoding}`);
+    }
+
+    // GitHub Contents API response is Base64 encoded.
+    return decodeBase64(file.content);
+  } catch (error) {
+    if (error instanceof GitHubApiError && error.status === 404) {
+      return null;
+    }
+
+    throw error;
+  }
 }

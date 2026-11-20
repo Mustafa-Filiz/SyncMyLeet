@@ -1,5 +1,7 @@
-import type { Submission } from "../types/submission.types";
-import { getSolutionPath } from "../utils/solution-path";
+import type {
+  SolutionManifestEntry,
+  SolutionManifest,
+} from "@/types/manifest.types";
 
 function escapeTable(value: string): string {
   return value.replace(/\|/g, "\\|").replace(/\r?\n/g, " ");
@@ -24,20 +26,9 @@ function createProgressBar(count: number, total: number): string {
   return `${"█".repeat(filled)}${"░".repeat(empty)} ${percentage}%`;
 }
 
-export function generateReadme(submissions: Submission[]): string {
-  // Keep only the newest submission for each solution path.
-  const uniqueSolutions = new Map<string, Submission>();
-
-  for (const submission of submissions) {
-    const path = getSolutionPath(submission);
-
-    if (!uniqueSolutions.has(path)) {
-      uniqueSolutions.set(path, submission);
-    }
-  }
-
-  const solutions = [...uniqueSolutions.entries()].sort(([pathA], [pathB]) =>
-    pathA.localeCompare(pathB),
+export function generateReadme(manifest: SolutionManifest): string {
+  const solutions = [...manifest.solutions].sort((a, b) =>
+    a.path.localeCompare(b.path),
   );
 
   const totalSolutions = solutions.length;
@@ -50,17 +41,18 @@ export function generateReadme(submissions: Submission[]): string {
 
   const languageCounts = new Map<string, number>();
 
-  for (const [, submission] of solutions) {
-    difficultyCounts[submission.difficulty] += 1;
+  for (const solution of solutions) {
+    difficultyCounts[solution.difficulty] += 1;
 
     languageCounts.set(
-      submission.languageName,
-      (languageCounts.get(submission.languageName) ?? 0) + 1,
+      solution.languageName,
+      (languageCounts.get(solution.languageName) ?? 0) + 1,
     );
   }
 
   const latestSubmissionDate = solutions
-    .map(([, submission]) => submission.submittedAt)
+    .map((solution) => solution.submittedAt)
+    .filter((date): date is string => Boolean(date))
     .sort((a, b) => b.localeCompare(a))[0];
 
   const languageTable = [...languageCounts.entries()]
@@ -80,14 +72,14 @@ export function generateReadme(submissions: Submission[]): string {
     return `| ${difficulty} | ${count} | ${createProgressBar(count, totalSolutions)} |`;
   });
 
-  const solutionTable = solutions.map(([path, submission]) => {
-    const link = `./${encodeURI(path)}`;
-    const title = escapeLinkText(submission.title);
+  const solutionTable = solutions.map((solution: SolutionManifestEntry) => {
+    const link = `./${encodeURI(solution.path)}`;
+    const title = escapeLinkText(solution.title);
 
     return [
       `| [${title}](${link})`,
-      `| ${submission.difficulty}`,
-      `| ${escapeTable(submission.languageName)} |`,
+      `| ${solution.difficulty}`,
+      `| ${escapeTable(solution.languageName)} |`,
     ].join(" ");
   });
 
@@ -127,7 +119,7 @@ export function generateReadme(submissions: Submission[]): string {
     "</p>",
     "",
     '<p align="center">',
-    "  Statistics are based on the submissions currently stored by the extension (up to 200).",
+    "  Statistics are based on solution files currently present in this repository.",
     "</p>",
     "",
   ].join("\n");

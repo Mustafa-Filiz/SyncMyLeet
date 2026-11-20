@@ -1,17 +1,20 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { upsertFile } from "@/services/github.service";
+import { getFile, upsertFile } from "@/services/github.service";
+import { synchronizeSolutionManifest } from "@/services/solution-manifest.service";
 import { getSettings } from "@/storage/settings.storage";
 import { getSyncRecord, saveSyncRecord } from "@/storage/sync.storage";
-import { getSubmissionHistory } from "@/storage/submission.storage";
-import {
-  getLastGeneratedReadme,
-  saveGeneratedReadme,
-} from "@/storage/readme.storage";
 import { performSyncSubmission, syncSubmission } from "@/services/sync.service";
+import { generateReadme } from "@/utils/readme-generator";
 import type { Submission } from "@/types/submission.types";
+import type { SolutionManifest } from "@/types/manifest.types";
 
 vi.mock("@/services/github.service", () => ({
+  getFile: vi.fn(),
   upsertFile: vi.fn(),
+}));
+
+vi.mock("@/services/solution-manifest.service", () => ({
+  synchronizeSolutionManifest: vi.fn(),
 }));
 
 vi.mock("@/storage/settings.storage", () => ({
@@ -23,15 +26,6 @@ vi.mock("@/storage/sync.storage", () => ({
   saveSyncRecord: vi.fn(),
 }));
 
-vi.mock("@/storage/submission.storage", () => ({
-  getSubmissionHistory: vi.fn(),
-}));
-
-vi.mock("@/storage/readme.storage", () => ({
-  getLastGeneratedReadme: vi.fn(),
-  saveGeneratedReadme: vi.fn(),
-}));
-
 vi.mock("@/utils/readme-generator", () => ({
   generateReadme: vi.fn(() => "# LeetCode Solutions"),
 }));
@@ -41,6 +35,11 @@ const settings = {
   owner: "test-user",
   repo: "leetcode-solutions",
   syncMode: "both" as const,
+};
+
+const manifest: SolutionManifest = {
+  version: 1,
+  solutions: [],
 };
 
 function createSubmission(submissionId: string): Submission {
@@ -84,10 +83,12 @@ describe("sync.service", () => {
     vi.mocked(getSettings).mockResolvedValue(settings);
     vi.mocked(getSyncRecord).mockResolvedValue(undefined);
     vi.mocked(saveSyncRecord).mockResolvedValue(undefined);
+
     vi.mocked(upsertFile).mockResolvedValue({} as never);
-    vi.mocked(getSubmissionHistory).mockResolvedValue([]);
-    vi.mocked(getLastGeneratedReadme).mockResolvedValue("# LeetCode Solutions");
-    vi.mocked(saveGeneratedReadme).mockResolvedValue(undefined);
+    vi.mocked(getFile).mockResolvedValue("# LeetCode Solutions");
+
+    vi.mocked(synchronizeSolutionManifest).mockResolvedValue(manifest);
+    vi.mocked(generateReadme).mockReturnValue("# LeetCode Solutions");
   });
 
   describe("performSyncSubmission", () => {
@@ -111,6 +112,103 @@ describe("sync.service", () => {
       });
 
       expect(upsertFile).not.toHaveBeenCalled();
+      expect(synchronizeSolutionManifest).not.toHaveBeenCalled();
+    });
+
+    it("should synchronize the manifest with the new submission", async () => {
+      const submission = createSubmission("123");
+
+      const result = await performSyncSubmission(submission, "manual");
+
+      expect(result.success).toBe(true);
+
+      expect(synchronizeSolutionManifest).toHaveBeenCalledWith(
+        {
+          token: settings.token,
+          owner: settings.owner,
+          repo: settings.repo,
+        },
+        submission,
+      );
+
+      expect(generateReadme).toHaveBeenCalledWith(manifest);
+    });
+
+    it("should not update README when its content has not changed", async () => {
+      const result = await performSyncSubmission(
+        createSubmission("123"),
+        "manual",
+      );
+
+      expect(result.success).toBe(true);
+
+      // Only the solution file should be uploaded.
+      expect(upsertFile).toHaveBeenCalledTimes(1);
+      expect(upsertFile).toHaveBeenCalledWith(
+        expect.objectContaining({
+          path: "Easy/1234-two-sum-123/solution.ts",
+        }),
+      );
+    });
+
+    it("should update README when its content has changed", async () => {
+      vi.mocked(getFile).mockResolvedValue("# Old README");
+
+      const result = await performSyncSubmission(
+        createSubmission("123"),
+        "manual",
+      );
+
+      expect(result.success).toBe(true);
+
+      expect(upsertFile).toHaveBeenCalledTimes(2);
+
+      expect(upsertFile).toHaveBeenLastCalledWith(
+        expect.objectContaining({
+          path: "README.md",
+          content: "# LeetCode Solutions",
+          message: "docs: update LeetCode solutions README",
+        }),
+      );
+    });
+
+    it("should mark sync as failed when manifest synchronization fails", async () => {
+      vi.mocked(synchronizeSolutionManifest).mockRejectedValue(
+        new Error("Manifest synchronization failed"),
+      );
+
+      const result = await performSyncSubmission(
+        createSubmission("123"),
+        "manual",
+      );
+
+      expect(result).toMatchObject({
+        success: false,
+        status: "failed",
+        message: "Manifest synchronization failed",
+      });
+
+      expect(saveSyncRecord).toHaveBeenLastCalledWith(
+        expect.objectContaining({
+          status: "failed",
+          error: "Manifest synchronization failed",
+        }),
+      );
+    });
+
+    it("should mark sync as failed when README retrieval fails", async () => {
+      vi.mocked(getFile).mockRejectedValue(new Error("GitHub unavailable"));
+
+      const result = await performSyncSubmission(
+        createSubmission("123"),
+        "manual",
+      );
+
+      expect(result).toMatchObject({
+        success: false,
+        status: "failed",
+        message: "GitHub unavailable",
+      });
     });
   });
 

@@ -1,15 +1,11 @@
-import { upsertFile } from "@/services/github.service";
+import { getFile, upsertFile } from "@/services/github.service";
 import { getSettings } from "@/storage/settings.storage";
 import { getSyncRecord, saveSyncRecord } from "@/storage/sync.storage";
 import type { Submission } from "@/types/submission.types";
 import type { SyncRecord, SyncResult, SyncTrigger } from "@/types/sync.types";
 import { getSolutionPath } from "@/utils/solution-path";
-import { getSubmissionHistory } from "@/storage/submission.storage";
-import {
-  getLastGeneratedReadme,
-  saveGeneratedReadme,
-} from "@/storage/readme.storage";
 import { generateReadme } from "@/utils/readme-generator";
+import { synchronizeSolutionManifest } from "@/services/solution-manifest.service";
 
 function createRecord(
   submissionId: string,
@@ -81,23 +77,28 @@ export async function performSyncSubmission(
       message: `Add ${submission.title} (${submission.languageName})`,
     });
 
-    const history = await getSubmissionHistory();
-    const readme = generateReadme(history);
+    const credentials = {
+      token: settings.token,
+      owner: settings.owner,
+      repo: settings.repo,
+    };
 
-    const repositoryKey = `${settings.owner}/${settings.repo}`;
-    const previousReadme = await getLastGeneratedReadme(repositoryKey);
+    const manifest = await synchronizeSolutionManifest(credentials, submission);
 
-    if (readme !== previousReadme) {
+    const readme = generateReadme(manifest);
+
+    const existingReadme = await getFile({
+      ...credentials,
+      path: "README.md",
+    });
+
+    if (readme !== existingReadme) {
       await upsertFile({
-        token: settings.token,
-        owner: settings.owner,
-        repo: settings.repo,
+        ...credentials,
         path: "README.md",
         content: readme,
         message: "docs: update LeetCode solutions README",
       });
-
-      await saveGeneratedReadme(repositoryKey, readme);
     }
 
     await saveSyncRecord(
