@@ -20,7 +20,7 @@ The project was built to solve a simple problem: keeping LeetCode progress organ
 - **Duplicate prevention** – Avoid unnecessary processing and repeated synchronization.
 - **Persistent solution metadata** – Keep repository statistics independent of local browser storage.
 
-## Screenshots
+<!-- ## Screenshots
 
 ### Main Popup
 
@@ -28,7 +28,7 @@ The project was built to solve a simple problem: keeping LeetCode progress organ
 
 ### GitHub Settings
 
-![Sync My Leet GitHub settings](docs/screenshots/github-settings.png)
+![Sync My Leet GitHub settings](docs/screenshots/github-settings.png) -->
 
 ## Tech Stack
 
