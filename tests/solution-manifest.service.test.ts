@@ -261,6 +261,41 @@ describe("solution-manifest.service", () => {
     expect(result.solutions).toHaveLength(0);
   });
 
+  it("does not create a GitHub commit when the manifest is unchanged", async () => {
+    const existingManifest = createManifest([createSolution()]);
+
+    vi.mocked(getRepositoryTree).mockResolvedValue([
+      createTreeItem("Easy/0001-two-sum/solution.ts"),
+    ]);
+
+    vi.mocked(getFile).mockResolvedValue(JSON.stringify(existingManifest));
+
+    const result = await synchronizeSolutionManifest(credentials);
+
+    expect(result).toEqual(existingManifest);
+    expect(upsertFile).not.toHaveBeenCalled();
+  });
+
+  it("updates the manifest when a new solution is discovered", async () => {
+    const existingManifest = createManifest([createSolution()]);
+
+    vi.mocked(getRepositoryTree).mockResolvedValue([
+      createTreeItem("Easy/0001-two-sum/solution.ts"),
+      createTreeItem("Medium/0002-add-two-numbers/solution.py"),
+    ]);
+
+    vi.mocked(getFile).mockResolvedValue(JSON.stringify(existingManifest));
+
+    const result = await synchronizeSolutionManifest(credentials);
+
+    expect(result.solutions).toHaveLength(2);
+    expect(upsertFile).toHaveBeenCalledOnce();
+
+    const call = vi.mocked(upsertFile).mock.calls[0]?.[0];
+
+    expect(call?.path).toBe("leetcode-sync/manifest.json");
+  });
+
   it("sorts manifest entries by path", async () => {
     vi.mocked(getRepositoryTree).mockResolvedValue([
       createTreeItem("Medium/0002-add-two-numbers/solution.py"),

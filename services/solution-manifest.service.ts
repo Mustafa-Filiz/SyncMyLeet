@@ -109,7 +109,6 @@ function parseManifest(content: string): SolutionManifest {
     throw new Error("GitHub solution manifest has an unsupported format.");
   }
 
-  // Validate every entry before using or replacing the manifest.
   for (const entry of parsed.solutions) {
     if (
       !entry ||
@@ -150,7 +149,6 @@ function mergeSolutions(
 
   const merged = new Map<string, SolutionManifestEntry>();
 
-  // Repository'de hâlâ bulunan dosyaları koru.
   for (const discoveredEntry of discovered) {
     const previous = existingByPath.get(discoveredEntry.path);
 
@@ -166,7 +164,6 @@ function mergeSolutions(
     );
   }
 
-  // Yeni submission'ın gerçek metadata'sını ekle veya güncelle.
   if (submission) {
     const path = getSolutionPath(submission);
 
@@ -190,6 +187,32 @@ function mergeSolutions(
   };
 }
 
+/**
+ * Produces deterministic JSON so formatting and property order
+ * differences do not trigger unnecessary GitHub commits.
+ */
+function serializeManifest(manifest: SolutionManifest): string {
+  const normalized: SolutionManifest = {
+    version: 1,
+    solutions: [...manifest.solutions]
+      .sort((a, b) => a.path.localeCompare(b.path))
+      .map((solution) => ({
+        problemId: solution.problemId,
+        title: solution.title,
+        slug: solution.slug,
+        difficulty: solution.difficulty,
+        language: solution.language,
+        languageName: solution.languageName,
+        path: solution.path,
+        ...(solution.submittedAt !== undefined
+          ? { submittedAt: solution.submittedAt }
+          : {}),
+      })),
+  };
+
+  return JSON.stringify(normalized, null, 2);
+}
+
 export async function synchronizeSolutionManifest(
   credentials: GitHubCredentials,
   submission?: Submission,
@@ -209,12 +232,21 @@ export async function synchronizeSolutionManifest(
     submission,
   );
 
-  await upsertFile({
-    ...credentials,
-    path: MANIFEST_PATH,
-    content: JSON.stringify(manifest, null, 2),
-    message: "chore: synchronize solution manifest",
-  });
+  const serializedManifest = serializeManifest(manifest);
+
+  const existingSerializedManifest = existingManifest
+    ? serializeManifest(existingManifest)
+    : null;
+
+  // Only write to GitHub when the manifest actually changes.
+  if (serializedManifest !== existingSerializedManifest) {
+    await upsertFile({
+      ...credentials,
+      path: MANIFEST_PATH,
+      content: serializedManifest,
+      message: "chore: synchronize solution manifest",
+    });
+  }
 
   return manifest;
 }
